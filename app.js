@@ -7,6 +7,13 @@ import { chargerJson, enregistrerJson } from './src/stockage.js';
 import { OPERATIONS, ajouterOperation, formaterOperation, listerOperations, trouverParId } from './src/registre.js';
 import { filtrerParCulture, filtrerParParcelle, trierParCout, trierParDate } from './src/recherche.js';
 import { coutMinMax, syntheseParParcelle, totalCouts } from './src/synthese.js';
+import {
+  CHAMPS_MODIFIABLES,
+  modifierOperation,
+  parcelleLaPlusCouteuse,
+  supprimerOperation,
+  trierParCoutDecroissant,
+} from './src/bonus.js';
 
 const FICHIER_DONNEES = 'donnees/operations.json';
 
@@ -38,6 +45,10 @@ async function main() {
       console.log('3. Rechercher (identifiant, parcelle, culture)');
       console.log('4. Trier (coût, date)');
       console.log('5. Synthèse des dépenses');
+      console.log('6. Supprimer une opération');
+      console.log('7. Modifier une opération');
+      console.log('8. Trier par coût décroissant');
+      console.log('9. Afficher la parcelle la plus coûteuse');
       console.log('0. Quitter');
 
       const choix = await demander('Votre choix : ');
@@ -159,10 +170,75 @@ async function main() {
             break;
           }
 
+          case '6': {
+            const id = await demander('Identifiant de l’opération à supprimer : ');
+            if (id === null) {
+              console.log('Au revoir !');
+              continuer = false;
+              break;
+            }
+
+            const operationSupprimee = supprimerOperation(operations, id);
+            if (!operationSupprimee) {
+              console.log('Aucune opération trouvée.');
+              break;
+            }
+
+            await enregistrerJson(FICHIER_DONNEES, operations);
+            console.log(`Opération supprimée : ${formaterOperation(operationSupprimee)}`);
+            break;
+          }
+
+          case '7': {
+            const id = await demander('Identifiant de l’opération à modifier : ');
+            if (id === null) {
+              console.log('Au revoir !');
+              continuer = false;
+              break;
+            }
+
+            const champ = await demander(
+              `Champ à modifier (${CHAMPS_MODIFIABLES.join(', ')}) : `,
+            );
+            if (champ === null) {
+              console.log('Au revoir !');
+              continuer = false;
+              break;
+            }
+
+            const valeur = await demander('Nouvelle valeur : ');
+            if (valeur === null) {
+              console.log('Au revoir !');
+              continuer = false;
+              break;
+            }
+
+            const erreurs = modifierOperation(operations, id, champ, valeur);
+            if (erreurs.length > 0) {
+              erreurs.forEach((erreur) => console.log(erreur));
+            } else {
+              await enregistrerJson(FICHIER_DONNEES, operations);
+              console.log('Opération modifiée.');
+            }
+            break;
+          }
+
+          case '8':
+            console.log(listerOperations(trierParCoutDecroissant(operations)));
+            break;
+
+          case '9': {
+            const resultat = parcelleLaPlusCouteuse(operations);
+            if (resultat === null) {
+              console.log('Aucune opération enregistrée.');
+            } else {
+              console.log(`Parcelle la plus coûteuse : ${resultat.parcelle} — ${resultat.total} FCFA,`);
+            }
+            break;
+          }
+
           default:
-            console.log(`
-              Choix inconnu : « ${choix} ». Tapez un chiffre du menu.,
-            `);
+            console.log(`Choix inconnu : « ${choix} ». Tapez un chiffre du menu.,`);
         }
       } catch (erreur) {
         if (erreur.message?.startsWith('TODO')) {
